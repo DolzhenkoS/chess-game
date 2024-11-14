@@ -1,0 +1,26 @@
+/* src/components/ChessBoard.css */
+.chess-board {
+    display: grid;
+    grid-template-columns: repeat(8, 50px);
+    grid-template-rows: repeat(8, 50px);
+    width: 400px; /* 8 x 50px */
+    height: 400px; /* 8 x 50px */
+    border: 2px solid #333;
+}
+
+/* Стили для чередующихся цветов клеток */
+.light-square {
+    background-color: #f0d9b5;
+}
+
+.dark-square {
+    background-color: #b58863;
+}
+
+.square {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

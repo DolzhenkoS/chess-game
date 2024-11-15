@@ -118,11 +118,40 @@ class Pawn extends Piece {
     }
 }
 
-class Rook extends Piece {
-    isValidMove(start, end, board) {
+// class Rook extends Piece {
+//     isValidMove(start, end, board) {
 
+//         const [startX, startY] = start;
+//         const [endX, endY] = end;
+
+//         if (startX !== endX && startY !== endY) return false;
+
+//         const dx = endX === startX ? 0 : endX > startX ? 1 : -1;
+//         const dy = endY === startY ? 0 : endY > startY ? 1 : -1;
+//         let x = startX + dx;
+//         let y = startY + dy;
+
+//         while (x !== endX || y !== endY) {
+//             if (board[x][y] !== null) return false;
+//             x += dx;
+//             y += dy;
+//         }
+
+//         return board[endX][endY] === null || board[endX][endY].color !== this.color;
+//     }
+// }
+
+class Rook extends Piece {
+    constructor(color) {
+        super(color);
+        this.hasMoved = false; // Флаг, указывающий, двигалась ли ладья
+    }
+
+    isValidMove(start, end, board) {
         const [startX, startY] = start;
         const [endX, endY] = end;
+
+        if (!isWithinBounds(endX, endY)) return false;
 
         if (startX !== endX && startY !== endY) return false;
 
@@ -131,7 +160,7 @@ class Rook extends Piece {
         let x = startX + dx;
         let y = startY + dy;
 
-        while (x !== endX || y !== endY) {
+        while (isWithinBounds(x, y) && (x !== endX || y !== endY)) {
             if (board[x][y] !== null) return false;
             x += dx;
             y += dy;
@@ -187,18 +216,74 @@ class Queen extends Piece {
     }
 }
 
+// class King extends Piece {
+//     isValidMove(start, end, board) {
+//         const [startX, startY] = start;
+//         const [endX, endY] = end;
+
+//         const dx = Math.abs(startX - endX);
+//         const dy = Math.abs(startY - endY);
+
+//         if (dx <= 1 && dy <= 1) {
+//             return board[endX][endY] === null || board[endX][endY].color !== this.color;
+//         }
+//         return false;
+//     }
+// }
+
 class King extends Piece {
+    constructor(color) {
+        super(color);
+        this.hasMoved = false; // Флаг, указывающий, двигался ли король
+    }
+
     isValidMove(start, end, board) {
         const [startX, startY] = start;
         const [endX, endY] = end;
 
+        // Проверка стандартного хода короля на 1 клетку
         const dx = Math.abs(startX - endX);
         const dy = Math.abs(startY - endY);
-
         if (dx <= 1 && dy <= 1) {
-            return board[endX][endY] === null || board[endX][endY].color !== this.color;
+            return (
+                board[endX][endY] === null || board[endX][endY].color !== this.color
+            );
         }
+
+        // Проверка на рокировку
+        if (!this.hasMoved && startX === endX && Math.abs(startY - endY) === 2) {
+            const rookY = endY > startY ? 7 : 0; // Определяем столбец ладьи (короткая или длинная рокировка)
+            const rook = board[startX][rookY];
+
+            // Убедимся, что ладья существует, не двигалась и пути нет препятствий
+            if (
+                rook &&
+                rook.constructor.name === "Rook" &&
+                !rook.hasMoved &&
+                this.isCastlingPathClear(start, [startX, rookY], board)
+            ) {
+                return true;
+            }
+        }
+
         return false;
+    }
+
+    // Проверяем, чист ли путь для рокировки
+    isCastlingPathClear(kingStart, rookPosition, board) {
+        const [kingX, kingY] = kingStart;
+        const [rookX, rookY] = rookPosition;
+
+        const direction = rookY > kingY ? 1 : -1;
+        let y = kingY + direction;
+
+        // Проверяем, что клетки между королем и ладьей пусты и не атакованы
+        while (y !== rookY) {
+            if (board[kingX][y] !== null) return false;
+            y += direction;
+        }
+
+        return true;
     }
 }
 

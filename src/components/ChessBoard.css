@@ -24,3 +24,22 @@
     align-items: center;
     justify-content: center;
 }
+
+.move-log {
+    margin-top: 20px;
+    background: #f9f9f9;
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.move-log ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.move-log li {
+    font-family: monospace;
+    font-size: 14px;
+    margin-bottom: 5px;
+}

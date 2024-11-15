@@ -1,6 +1,128 @@
 // src/utils/chessLogic.js
 
-// src/utils/chessLogic.js
+const pieceValues = {
+    Pawn: 1,
+    Knight: 3,
+    Bishop: 3,
+    Rook: 5,
+    Queen: 9,
+    King: 0, // Король не имеет численной стоимости, но потеря его означает конец игры
+};
+
+// Оценка доски: положительные значения для белых, отрицательные для черных
+export function evaluateBoard(board) {
+    let evaluation = 0;
+
+    for (let x = 0; x < 8; x++) {
+        for (let y = 0; y < 8; y++) {
+            const piece = board[x][y];
+            if (piece) {
+                const value = pieceValues[piece.constructor.name];
+                evaluation += piece.color === 'w' ? value : -value;
+            }
+        }
+    }
+
+    return evaluation;
+}
+
+export function minimax(board, depth, isMaximizingPlayer, alpha, beta) {
+    if (depth === 0) {
+        return evaluateBoard(board); // Оценка текущей позиции
+    }
+
+    const color = isMaximizingPlayer ? 'b' : 'w'; // Черные или белые
+    const allMoves = getAllMoves(board, color);
+
+    if (allMoves.length === 0) {
+        return isMaximizingPlayer ? -Infinity : Infinity; // Мат или пат
+    }
+
+    let bestValue = isMaximizingPlayer ? -Infinity : Infinity;
+
+    for (const move of allMoves) {
+        const [start, end] = move;
+        const simulatedBoard = makeMove(board, start, end);
+
+        const value = minimax(simulatedBoard, depth - 1, !isMaximizingPlayer, alpha, beta);
+
+        if (isMaximizingPlayer) {
+            bestValue = Math.max(bestValue, value);
+            alpha = Math.max(alpha, bestValue);
+        } else {
+            bestValue = Math.min(bestValue, value);
+            beta = Math.min(beta, bestValue);
+        }
+
+        if (beta <= alpha) break; // Альфа-бета обрезка
+    }
+
+    return bestValue;
+}
+
+export function getAllMoves(board, color) {
+    const moves = [];
+
+    for (let x = 0; x < 8; x++) {
+        for (let y = 0; y < 8; y++) {
+            const piece = board[x][y];
+            if (piece && piece.color === color) {
+                const validMoves = getValidMoves([x, y], piece, board);
+
+                // Добавляем только корректные ходы
+                validMoves.forEach((move) => {
+                    const simulatedBoard = makeMove(board, [x, y], move);
+                    if (!isKingInCheck(simulatedBoard, color)) {
+                        moves.push([[x, y], move]);
+                    }
+                });
+            }
+        }
+    }
+
+    return moves;
+}
+
+export function makeBestMove(board, depth) {
+    let bestMove = null;
+    let bestValue = -Infinity;
+
+    const allMoves = getAllMoves(board, 'b'); // Ходы для черных (AI)
+
+    for (const move of allMoves) {
+        const [start, end] = move;
+        const simulatedBoard = makeMove(board, start, end);
+
+        const boardValue = minimax(simulatedBoard, depth - 1, false, -Infinity, Infinity);
+
+        if (boardValue > bestValue) {
+            bestValue = boardValue;
+            bestMove = move;
+        }
+    }
+
+    return bestMove;
+}
+
+// Функция для симуляции хода
+export function makeMove(board, start, end) {
+    const newBoard = board.map(row => row.slice());
+
+    const piece = newBoard[start[0]][start[1]];
+    newBoard[end[0]][end[1]] = piece;
+    newBoard[start[0]][start[1]] = null;
+
+    // Проверка превращения пешки
+    if (
+        piece.constructor.name === "Pawn" &&
+        (end[0] === 0 || end[0] === 7)
+    ) {
+        newBoard[end[0]][end[1]] = new Queen(piece.color); // Пешка превращается в ферзя
+    }
+
+    return newBoard;
+}
+
 // src/utils/chessLogic.js
 
 export function getValidMoves(start, piece, board) {
@@ -26,8 +148,6 @@ export function getValidMoves(start, piece, board) {
 
     return validMoves;
 }
-
-// src/utils/chessLogic.js
 
 export function isCheckmate(board, color) {
     if (!isKingInCheck(board, color)) return false; // Король не под шахом — это не мат
@@ -82,7 +202,6 @@ export function isKingInCheck(board, color) {
     return false;
 }
 
-// src/utils/chessLogic.js
 
 function isWithinBounds(x, y) {
     return x >= 0 && x < 8 && y >= 0 && y < 8;
@@ -118,28 +237,6 @@ class Pawn extends Piece {
     }
 }
 
-// class Rook extends Piece {
-//     isValidMove(start, end, board) {
-
-//         const [startX, startY] = start;
-//         const [endX, endY] = end;
-
-//         if (startX !== endX && startY !== endY) return false;
-
-//         const dx = endX === startX ? 0 : endX > startX ? 1 : -1;
-//         const dy = endY === startY ? 0 : endY > startY ? 1 : -1;
-//         let x = startX + dx;
-//         let y = startY + dy;
-
-//         while (x !== endX || y !== endY) {
-//             if (board[x][y] !== null) return false;
-//             x += dx;
-//             y += dy;
-//         }
-
-//         return board[endX][endY] === null || board[endX][endY].color !== this.color;
-//     }
-// }
 
 class Rook extends Piece {
     constructor(color) {
@@ -170,15 +267,39 @@ class Rook extends Piece {
     }
 }
 
+// class Knight extends Piece {
+//     isValidMove(start, end) {
+//         const [startX, startY] = start;
+//         const [endX, endY] = end;
+
+//         const dx = Math.abs(startX - endX);
+//         const dy = Math.abs(startY - endY);
+
+//         return (dx === 2 && dy === 1) || (dx === 1 && dy === 2);
+//     }
+// }
+
 class Knight extends Piece {
-    isValidMove(start, end) {
+    isValidMove(start, end, board) {
         const [startX, startY] = start;
         const [endX, endY] = end;
 
+        // Проверка координат хода
         const dx = Math.abs(startX - endX);
         const dy = Math.abs(startY - endY);
 
-        return (dx === 2 && dy === 1) || (dx === 1 && dy === 2);
+        // Конь должен двигаться в форме "Г" (2 клетки в одну сторону, 1 в другую)
+        if (!((dx === 2 && dy === 1) || (dx === 1 && dy === 2))) {
+            return false;
+        }
+
+        // Проверка, не стоит ли на конечной клетке фигура того же цвета
+        const targetPiece = board[endX][endY];
+        if (targetPiece && targetPiece.color === this.color) {
+            return false; // Нельзя взять свою фигуру
+        }
+
+        return true;
     }
 }
 
@@ -216,20 +337,6 @@ class Queen extends Piece {
     }
 }
 
-// class King extends Piece {
-//     isValidMove(start, end, board) {
-//         const [startX, startY] = start;
-//         const [endX, endY] = end;
-
-//         const dx = Math.abs(startX - endX);
-//         const dy = Math.abs(startY - endY);
-
-//         if (dx <= 1 && dy <= 1) {
-//             return board[endX][endY] === null || board[endX][endY].color !== this.color;
-//         }
-//         return false;
-//     }
-// }
 
 class King extends Piece {
     constructor(color) {
@@ -302,5 +409,8 @@ function initializeBoard() {
 
     return board;
 }
+
+
+
 
 export { initializeBoard, Pawn, Rook, Knight, Bishop, Queen, King };

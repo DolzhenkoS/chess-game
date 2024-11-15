@@ -1,7 +1,7 @@
 // src/components/ChessBoard.jsx
 import React, { useState } from 'react';
 import Piece from './Piece';
-import { initializeBoard, isKingInCheck, isCheckmate, getValidMoves } from '../utils/chessLogic';
+import { initializeBoard, isKingInCheck, isCheckmate, getValidMoves,Queen } from '../utils/chessLogic';
 import './ChessBoard.css';
 
 function ChessBoard() {
@@ -73,8 +73,19 @@ function ChessBoard() {
                     rook.hasMoved = true;
                 }
     
+                // Проверка превращения пешки
+                if (
+                    selectedPieceInstance.constructor.name === "Pawn" &&
+                    (x === 0 || x === 7) // Белая пешка достигает 0, черная — 7
+                ) {
+                    newBoard[x][y] = new Queen(selectedPieceInstance.color); // Превращаем пешку в ферзя
+                } else {
+                    // Перемещаем фигуру
+                    newBoard[x][y] = selectedPieceInstance;
+                } 
+                               
                 // Перемещаем короля или любую другую фигуру
-                newBoard[x][y] = selectedPieceInstance;
+//                newBoard[x][y] = selectedPieceInstance;
                 newBoard[startX][startY] = null;
     
                 selectedPieceInstance.hasMoved = true; // Указываем, что фигура уже двигалась

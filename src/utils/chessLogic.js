@@ -64,6 +64,8 @@ export function isKingInCheck(board, color) {
         if (kingPosition) break;
     }
 
+    if (!kingPosition) return false; //!!!!!
+
     // Проверка всех фигур противника, угрожающих королю
     const opponentColor = color === 'w' ? 'b' : 'w';
     for (let x = 0; x < 8; x++) {
@@ -118,6 +120,7 @@ class Pawn extends Piece {
 
 class Rook extends Piece {
     isValidMove(start, end, board) {
+
         const [startX, startY] = start;
         const [endX, endY] = end;
 
@@ -152,6 +155,7 @@ class Knight extends Piece {
 
 class Bishop extends Piece {
     isValidMove(start, end, board) {
+
         const [startX, startY] = start;
         const [endX, endY] = end;
 

@@ -9,29 +9,62 @@ const pieceValues = {
     King: 0, // Король не имеет численной стоимости, но потеря его означает конец игры
 };
 
+
+function boardToString(board) {
+    return board
+        .map((row) => row.map((piece) => (piece ? `${piece.color}${piece.constructor.name[0]}` : '.')).join(''))
+        .join('\n');
+}
+
 // Оценка доски: положительные значения для белых, отрицательные для черных
-export function evaluateBoard(board) {
+export function evaluateBoard(board, moveHistory) {
     let evaluation = 0;
 
+    const pieceValues = {
+        Pawn: 1,
+        Knight: 3,
+        Bishop: 3,
+        Rook: 5,
+        Queen: 9,
+        King: 0,
+    };
+
+    const centralSquares = [
+        [3, 3], [3, 4], [4, 3], [4, 4], // Центр: d4, d5, e4, e5
+    ];
+
+    // Оценка фигур
     for (let x = 0; x < 8; x++) {
         for (let y = 0; y < 8; y++) {
             const piece = board[x][y];
             if (piece) {
                 const value = pieceValues[piece.constructor.name];
                 evaluation += piece.color === 'w' ? value : -value;
+
+                // Поощрение за контроль центра
+                if (centralSquares.some(([cx, cy]) => cx === x && cy === y)) {
+                    evaluation += piece.color === 'w' ? 0.1 : -0.1;
+                }
             }
         }
+    }
+
+    // Штраф за повторение позиций
+    const boardString = boardToString(board);
+    const repeatCount = moveHistory.filter((state) => state === boardString).length;
+    if (repeatCount > 0) {
+        evaluation -= repeatCount * 0.5; // Чем больше повторений, тем выше штраф
     }
 
     return evaluation;
 }
 
-export function minimax(board, depth, isMaximizingPlayer, alpha, beta) {
+export function minimax(board, depth, isMaximizingPlayer, alpha, beta, moveHistory = []) {
     if (depth === 0) {
-        return evaluateBoard(board); // Оценка текущей позиции
+        return evaluateBoard(board, moveHistory);
     }
 
-    const color = isMaximizingPlayer ? 'b' : 'w'; // Черные или белые
+    const color = isMaximizingPlayer ? 'b' : 'w';
     const allMoves = getAllMoves(board, color);
 
     if (allMoves.length === 0) {
@@ -44,7 +77,10 @@ export function minimax(board, depth, isMaximizingPlayer, alpha, beta) {
         const [start, end] = move;
         const simulatedBoard = makeMove(board, start, end);
 
-        const value = minimax(simulatedBoard, depth - 1, !isMaximizingPlayer, alpha, beta);
+        const boardString = boardToString(simulatedBoard);
+        const newMoveHistory = [...moveHistory, boardString];
+
+        const value = minimax(simulatedBoard, depth - 1, !isMaximizingPlayer, alpha, beta, newMoveHistory);
 
         if (isMaximizingPlayer) {
             bestValue = Math.max(bestValue, value);
@@ -83,7 +119,7 @@ export function getAllMoves(board, color) {
     return moves;
 }
 
-export function makeBestMove(board, depth) {
+export function makeBestMove(board, depth, moveHistory = []) {
     let bestMove = null;
     let bestValue = -Infinity;
 
@@ -93,7 +129,10 @@ export function makeBestMove(board, depth) {
         const [start, end] = move;
         const simulatedBoard = makeMove(board, start, end);
 
-        const boardValue = minimax(simulatedBoard, depth - 1, false, -Infinity, Infinity);
+        const boardString = boardToString(simulatedBoard);
+        const newMoveHistory = [...moveHistory, boardString];
+
+        const boardValue = minimax(simulatedBoard, depth - 1, false, -Infinity, Infinity, newMoveHistory);
 
         if (boardValue > bestValue) {
             bestValue = boardValue;
@@ -267,17 +306,6 @@ class Rook extends Piece {
     }
 }
 
-// class Knight extends Piece {
-//     isValidMove(start, end) {
-//         const [startX, startY] = start;
-//         const [endX, endY] = end;
-
-//         const dx = Math.abs(startX - endX);
-//         const dy = Math.abs(startY - endY);
-
-//         return (dx === 2 && dy === 1) || (dx === 1 && dy === 2);
-//     }
-// }
 
 class Knight extends Piece {
     isValidMove(start, end, board) {
@@ -348,21 +376,26 @@ class King extends Piece {
         const [startX, startY] = start;
         const [endX, endY] = end;
 
-        // Проверка стандартного хода короля на 1 клетку
+        // Проверка, что целевая клетка находится на доске
+        if (!isWithinBounds(endX, endY)) return false;
+
+        // Проверка стандартного хода короля (на 1 клетку в любую сторону)
         const dx = Math.abs(startX - endX);
         const dy = Math.abs(startY - endY);
         if (dx <= 1 && dy <= 1) {
-            return (
-                board[endX][endY] === null || board[endX][endY].color !== this.color
-            );
+            const targetPiece = board[endX][endY];
+            if (targetPiece && targetPiece.color === this.color) {
+                return false; // Нельзя взять свою фигуру
+            }
+            return true;
         }
 
-        // Проверка на рокировку
+        // Проверка рокировки
         if (!this.hasMoved && startX === endX && Math.abs(startY - endY) === 2) {
             const rookY = endY > startY ? 7 : 0; // Определяем столбец ладьи (короткая или длинная рокировка)
             const rook = board[startX][rookY];
 
-            // Убедимся, что ладья существует, не двигалась и пути нет препятствий
+            // Убедимся, что ладья существует, не двигалась, и путь чист
             if (
                 rook &&
                 rook.constructor.name === "Rook" &&
@@ -384,7 +417,7 @@ class King extends Piece {
         const direction = rookY > kingY ? 1 : -1;
         let y = kingY + direction;
 
-        // Проверяем, что клетки между королем и ладьей пусты и не атакованы
+        // Проверяем, что клетки между королем и ладьей пусты
         while (y !== rookY) {
             if (board[kingX][y] !== null) return false;
             y += direction;

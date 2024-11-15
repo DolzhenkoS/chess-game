@@ -11,8 +11,24 @@ function ChessBoard() {
     const [turn, setTurn] = useState("w"); // Начинает белый
     const [status, setStatus] = useState("");
     const [moveLog, setMoveLog] = useState([]); // Хранит протокол ходов
+    const [moveHistory, setMoveHistory] = useState([]); // Хранение истории всех ходов
 
     const columns = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+    // При записи хода добавляем его в историю
+    function recordMove(start, end, piece) {
+        const [startX, startY] = start;
+        const [endX, endY] = end;
+    
+        const move = {
+            piece: piece.constructor.name,
+            start: [startX, startY],
+            end: [endX, endY],
+        };
+    
+        setMoveLog((prevLog) => [...prevLog, `${columns[startY]}${8 - startX} -> ${columns[endY]}${8 - endX}`]);
+        setMoveHistory((prevHistory) => [...prevHistory, move]);
+    }
 
     function recordMove(start, end, piece) {
         const [startX, startY] = start;
@@ -77,7 +93,7 @@ function ChessBoard() {
 
                 if (nextTurn === 'b') {
                     // Ход AI
-                    const bestMove = makeBestMove(newBoard, 5); // Глубина 3
+                    const bestMove = makeBestMove(newBoard, 4); // Глубина 3
                     if (bestMove) {
                         const [aiStart, aiEnd] = bestMove;
 
